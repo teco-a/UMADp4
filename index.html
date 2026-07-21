@@ -44,7 +44,7 @@
   .ibtn.none .emoji{font-size:26px;padding-top:6px;}
   .ibtn.none.on{border-color:#64748b;background:#242c38;color:#c3ccd8;}
   .ibtn.none.on .emoji{filter:none;}
-  .ibtn.dis{opacity:.22;pointer-events:none;}
+  .ibtn.dis{opacity:.35;} /* 薄表示のみ。タップ可能で、押すと競合側が自動解除される */
   .ibtn .emoji{font-size:34px;display:block;line-height:1.1;filter:grayscale(1) opacity(.55);}
   .ibtn .nm{font-size:11px;font-weight:700;display:block;margin-top:4px;line-height:1.2;}
   .ibtn.on{border-color:var(--accent);background:#2a2410;color:var(--accent);}
@@ -178,6 +178,7 @@ function setTruth(gc,val){
 }
 function toggleDeb(dkey,k){
   var d = state[dkey];
+  var o = state[dkey==="gc1d" ? "gc2d" : "gc1d"];
   d[k] = !d[k];
   if(d[k]){
     /* 水雷グループ（⚡💧）と視線グループ（👁該当なし）は同一GC内で排他 */
@@ -185,6 +186,10 @@ function toggleDeb(dkey,k){
     if(k==="water"){ d.lightning=false; d.curse=false; d.none=false; }
     if(k==="curse"){ d.none=false; d.lightning=false; d.water=false; }
     if(k==="none"){ d.curse=false; d.lightning=false; d.water=false; }
+    /* 相手GC側の競合する選択も自動解除（押し直しの手間をなくす） */
+    if(k==="accel"){ o.accel=false; }
+    if(k==="lightning"||k==="water"){ o.lightning=false; o.water=false; }
+    if(k==="curse"||k==="none"){ o.curse=false; o.none=false; }
   }
   render();
 }
