@@ -96,11 +96,17 @@
   .divider{height:1px;background:var(--border);margin:12px 0;}
 
   /* ---- レスポンシブ ---- */
-  /* 縦画面スマホ（既定）: 入力 → 結果 → リセット の縦積み */
-  .layout{display:grid;grid-template-areas:"inputs" "rescol" "resetw";grid-template-columns:1fr;}
+  /* 縦画面スマホ（既定）: 1画面に収める（入力=auto / 結果=残り全部 / リセット=auto） */
+  .layout{display:grid;grid-template-areas:"inputs" "rescol" "resetw";grid-template-columns:1fr;
+    grid-template-rows:auto minmax(0,1fr) auto;
+    height:calc(100vh - 48px);height:calc(100dvh - 48px);}
   .inputs{grid-area:inputs;}
-  .rescol{grid-area:rescol;}
+  .rescol{grid-area:rescol;min-height:0;display:flex;flex-direction:column;}
   .resetwrap{grid-area:resetw;}
+  .rescol .divider{margin:8px 0;}
+  .results{flex:1;min-height:0;display:flex;flex-direction:column;gap:6px;}
+  .results .rcard,.results .rslot{flex:1;min-height:0;margin-bottom:0;overflow:hidden;}
+  .rcard{padding:8px 14px;}
 
   /* 横画面タブレット: 左=入力 / 右=結果、画面全体を使う */
   @media (min-width:700px) and (orientation:landscape){
@@ -112,8 +118,8 @@
       grid-template-columns:minmax(340px,460px) 1fr;
       grid-template-rows:1fr auto;
       gap:14px 28px;align-items:stretch;
-      min-height:calc(100vh - 60px);
-      min-height:calc(100dvh - 60px);
+      height:calc(100vh - 60px);
+      height:calc(100dvh - 60px);
     }
     /* 入力側: ボタン自体を縦いっぱいに引き伸ばす */
     .inputs{display:flex;flex-direction:column;gap:16px;}
@@ -141,13 +147,28 @@
     .rempty{flex:1;display:flex;align-items:center;justify-content:center;font-size:15px;}
     .resetbtn{margin-top:0;padding:18px;}
   }
-  /* 幅の狭いスマホ: アイコンや文字を少し詰める */
+  /* 幅の狭いスマホ: アイコンや文字を詰めて1画面に収める */
   @media (max-width:430px){
-    .ibtn .emoji{font-size:28px;}
-    .ibtn .nm{font-size:10px;}
-    .tbtn{font-size:17px;padding:12px 4px;}
-    .rcard .remoji{font-size:30px;}
-    .gclabel{min-width:30px;font-size:12px;}
+    #app{padding-top:max(12px, env(safe-area-inset-top));padding-bottom:max(10px, env(safe-area-inset-bottom));}
+    .layout{height:calc(100vh - 22px);height:calc(100dvh - 22px);}
+    .gcrow{margin-bottom:6px;}
+    .gcbody{gap:6px;}
+    .ibtn{padding:6px 4px 5px;}
+    .ibtn .emoji{font-size:24px;}
+    .ibtn .nm{font-size:9px;margin-top:2px;}
+    .tbtn{font-size:15px;padding:8px 4px;}
+    .tbtn small{font-size:9px;}
+    .pairgroup{padding:4px;}
+    .rcard .remoji{font-size:24px;}
+    .rcard .raction{font-size:clamp(16px,5vw,24px);}
+    .rcard .rmeta{font-size:9px;}
+    .gnum{width:40px;height:40px;}
+    .gnum .n{font-size:19px;}
+    .gnum .k{font-size:8px;}
+    .gclabel{min-width:26px;font-size:11px;}
+    .rslot{font-size:12px;}
+    .resetbtn{padding:10px;font-size:14px;margin-top:8px;}
+    .rescol .divider{margin:6px 0;}
   }
 </style>
 </head>
