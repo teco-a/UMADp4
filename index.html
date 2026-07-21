@@ -33,9 +33,9 @@
   .tbtn.t.on{background:linear-gradient(180deg,var(--true),var(--true-dark));color:#fff;border-color:var(--true);}
   .tbtn.f.on{background:linear-gradient(180deg,var(--false),var(--false-dark));color:#fff;border-color:var(--false);}
   .tbtn:active{transform:scale(.97);}
-  .iconrow{display:flex;gap:10px;align-items:stretch;}
-  .pairgroup{display:flex;gap:6px;flex:2;border:2px dashed #3d485e;border-radius:16px;padding:5px;position:relative;}
-  .pairgroup::before{content:"どちらか一方";position:absolute;top:-9px;left:12px;background:var(--bg);
+  .iconrow{display:flex;gap:10px;align-items:stretch;flex-wrap:wrap;}
+  .pairgroup{display:flex;gap:6px;flex:2 1 150px;border:2px dashed #3d485e;border-radius:16px;padding:5px;position:relative;}
+  .pairgroup::before{content:attr(data-label);position:absolute;top:-9px;left:12px;background:var(--bg);
     color:var(--sub);font-size:10px;font-weight:700;padding:0 6px;border-radius:6px;}
   .pairgroup .ibtn{flex:1;}
   .iconrow > .ibtn{flex:1;}
@@ -82,6 +82,9 @@
   .gnum .k{font-size:10px;margin-top:1px;}
   .rcard.gaze.tr .gnum{background:#a8c8ff;color:#0a1c3d;}
   .rcard.gaze.fa .gnum{background:#ffb3b3;color:#3d0a0a;}
+  /* 自分が視線役（叫声持ち）: 金枠で強調 */
+  .rcard.gaze.role{border-color:var(--accent);}
+  .rcard.gaze.role .rmeta{color:var(--accent);}
 
   .resetbtn{width:100%;margin-top:14px;border:none;border-radius:14px;padding:16px;
     font-size:17px;font-weight:900;background:var(--accent);color:#241a00;cursor:pointer;}
@@ -122,11 +125,12 @@
     .ibtn .emoji{font-size:44px;}
     .ibtn .nm{font-size:13px;margin-top:6px;}
     .gclabel{font-size:15px;min-width:40px;}
-    /* 結果側: カードを縦いっぱいに均等配置 */
+    /* 結果側: 上から順にスタック。高さは常に「4枚でちょうど埋まる」サイズに固定 */
     .rescol{display:flex;flex-direction:column;}
     .rescol .divider{display:none;}
-    .results{flex:1;display:flex;flex-direction:column;gap:12px;}
-    .rcard{flex:1;margin-bottom:0;padding:16px 22px;}
+    .results{flex:1;display:flex;flex-direction:column;gap:12px;justify-content:flex-start;}
+    .rcard{margin-bottom:0;padding:10px 22px;
+      flex:0 0 calc(25% - 9px);min-height:0;box-sizing:border-box;}
     .rcard .remoji{font-size:46px;}
     .rcard .raction{font-size:clamp(28px,3.4vw,42px);}
     .rempty{flex:1;display:flex;align-items:center;justify-content:center;font-size:15px;}
@@ -153,6 +157,7 @@ var DEB = {
               tSub:"1人で範囲AoEを受ける", fSub:"味方と重なる"},
   water:     {emoji:"💧", nm:"水圧縮",   full:"水属性圧縮",         t:"頭割り",   f:"散開",
               tSub:"味方と重なる", fSub:"1人で範囲AoEを受ける"},
+  curse:     {emoji:"👁", nm:"叫声",     full:"呪詛の叫声"},
   accel:     {emoji:"💣", nm:"加速度",   full:"加速度爆弾",         t:"動かない", f:"動く",
               tSub:"その場で静止", fSub:"移動し続ける"}
 };
@@ -161,8 +166,8 @@ var KEYS = ["lightning","water","accel"];
 var state;
 function reset(){
   state = {
-    gc1:null, gc1d:{lightning:false,water:false,accel:false,none:false},
-    gc2:null, gc2d:{lightning:false,water:false,accel:false,none:false}
+    gc1:null, gc1d:{lightning:false,water:false,curse:false,accel:false,none:false},
+    gc2:null, gc2d:{lightning:false,water:false,curse:false,accel:false,none:false}
   };
   render();
 }
@@ -173,15 +178,13 @@ function setTruth(gc,val){
 }
 function toggleDeb(dkey,k){
   var d = state[dkey];
-  if(k==="none"){
-    d.none = !d.none;
-    if(d.none){ d.lightning=false; d.water=false; d.accel=false; }
-  } else {
-    d[k] = !d[k];
-    if(d[k]) d.none = false;
-    /* ライトニングと水圧縮は同時付与されない → 排他 */
-    if(k==="lightning" && d.lightning) d.water=false;
-    if(k==="water" && d.water) d.lightning=false;
+  d[k] = !d[k];
+  if(d[k]){
+    /* 水雷グループ（⚡💧）と視線グループ（👁該当なし）は同一GC内で排他 */
+    if(k==="lightning"){ d.water=false; d.curse=false; d.none=false; }
+    if(k==="water"){ d.lightning=false; d.curse=false; d.none=false; }
+    if(k==="curse"){ d.none=false; d.lightning=false; d.water=false; }
+    if(k==="none"){ d.curse=false; d.lightning=false; d.water=false; }
   }
   render();
 }
@@ -198,15 +201,21 @@ function gcSection(label, truthKey, debKey){
     + '</div>';
   function ibtn(k){
     var on=state[debKey][k], d=DEB[k];
-    var dis = (k==="accel") ? other.accel : (other.lightning || other.water);
-    return '<button class="ibtn'+(on?" on":"")+(dis?" dis":"")+'" onclick="toggleDeb(\''+debKey+'\',\''+k+'\')">'
-      + '<span class="emoji">'+d.emoji+'</span><span class="nm">'+d.nm+'</span></button>';
+    /* 同種は片方のGCにしかつかない: 水雷⇔視線グループはGC間で必ず入れ替わる */
+    var dis;
+    if(k==="accel") dis = other.accel;
+    else if(k==="lightning"||k==="water") dis = other.lightning || other.water;
+    else dis = other.curse || other.none; /* curse, none */
+    var inner = (k==="none")
+      ? '<span class="emoji">－</span><span class="nm">該当なし</span>'
+      : '<span class="emoji">'+d.emoji+'</span><span class="nm">'+d.nm+'</span>';
+    return '<button class="ibtn'+(k==="none"?" none":"")+(on?" on":"")+(dis?" dis":"")
+      +'" onclick="toggleDeb(\''+debKey+'\',\''+k+'\')">'+inner+'</button>';
   }
   html += '<div class="iconrow">'
-    + '<div class="pairgroup">'+ibtn("lightning")+ibtn("water")+'</div>'
-    + ibtn("accel")
-    + '<button class="ibtn none'+(state[debKey].none?" on":"")+'" onclick="toggleDeb(\''+debKey+'\',\'none\')">'
-    + '<span class="emoji">－</span><span class="nm">該当なし</span></button>';
+    + '<div class="pairgroup" data-label="水雷グループ">'+ibtn("lightning")+ibtn("water")+'</div>'
+    + '<div class="pairgroup" data-label="視線グループ">'+ibtn("curse")+ibtn("none")+'</div>'
+    + ibtn("accel");
   html += '</div></div></div>';
   return html;
 }
@@ -226,11 +235,16 @@ function buildItems(){
         });
       }
     }
-    /* 視線はGCの真偽から自動判定（GC1→1回目、GC2→2回目） */
+    /* 視線はGCの真偽から自動判定（GC1→1回目、GC2→2回目）。叫声持ちは視線役 */
+    var role = debObj.curse;
     items.push({
-      gaze:true, num:num, meta:"視線", truth:truth,
+      gaze:true, role:role, num:num,
+      meta: role ? "視線【自分が視線役】" : "視線",
+      truth:truth,
       action: truth==="true"?"見ない":"見る",
-      sub: truth==="true"?"視線から外を向く":"視線の方を向く"
+      sub: role
+        ? (truth==="true"?"中央へ・外を向く":"中央へ・相方の視線役を見る")
+        : (truth==="true"?"視線から外を向く":"視線役の方を見る")
     });
   }
   add("1", state.gc1, state.gc1d);
@@ -258,7 +272,7 @@ function render(){
       var lead = it.gaze
         ? '<span class="gnum"><span class="n">'+it.num+'</span><span class="k">回目</span></span><span class="remoji">👁</span>'
         : '<span class="remoji">'+it.emoji+'</span>';
-      html += '<div class="rcard '+(it.gaze?'gaze ':'')+(it.accel?'accel ':'')+(it.truth==="true"?"tr":"fa")+'">'
+      html += '<div class="rcard '+(it.gaze?'gaze ':'')+(it.role?'role ':'')+(it.accel?'accel ':'')+(it.truth==="true"?"tr":"fa")+'">'
         + lead
         + '<div class="rbody">'
         + '<div class="rmeta">'+it.meta+'　<span style="opacity:.7">'+it.sub+'</span></div>'
