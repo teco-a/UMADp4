@@ -64,6 +64,10 @@
   .rcard.tr .rpill{background:var(--true);color:#08152e;}
   .rcard.fa .rpill{background:var(--false);color:#2e0808;}
   .rempty{color:var(--sub);font-size:14px;text-align:center;padding:18px 0;border:1px dashed var(--border);border-radius:14px;}
+  /* 空きスロット: 配置固定用のプレースホルダ */
+  .rslot{border:2px dashed var(--border);border-radius:16px;margin-bottom:8px;
+    min-height:78px;display:flex;align-items:center;justify-content:center;
+    color:#4a5568;font-size:14px;font-weight:800;letter-spacing:.05em;}
 
   /* 加速度爆弾カード: 破線枠＋琥珀色で他デバフと区別 */
   .rcard.accel{border-style:dashed;border-width:3px;border-color:#d97706;}
@@ -131,6 +135,7 @@
     .results{flex:1;display:flex;flex-direction:column;gap:12px;justify-content:flex-start;}
     .rcard{margin-bottom:0;padding:10px 22px;
       flex:0 0 calc(25% - 9px);min-height:0;box-sizing:border-box;}
+    .rslot{margin-bottom:0;flex:0 0 calc(25% - 9px);min-height:0;font-size:16px;}
     .rcard .remoji{font-size:46px;}
     .rcard .raction{font-size:clamp(28px,3.4vw,42px);}
     .rempty{flex:1;display:flex;align-items:center;justify-content:center;font-size:15px;}
@@ -272,26 +277,32 @@ function render(){
   html += gcSection("ＧＣ２","gc2","gc2d");
   html += '</div>';
 
-  /* 結果エリア */
+  /* 結果エリア: 4スロット固定（視線1 / 水雷 / 加速度 / 視線2）。空きは枠のみ表示 */
   var items = buildItems();
+  function cardHtml(it){
+    var lead = it.gaze
+      ? '<span class="gnum"><span class="n">'+it.num+'</span><span class="k">回目</span></span><span class="remoji">👁</span>'
+      : '<span class="remoji">'+it.emoji+'</span>';
+    return '<div class="rcard '+(it.gaze?'gaze ':'')+(it.role?'role ':'')+(it.accel?'accel ':'')+(it.truth==="true"?"tr":"fa")+'">'
+      + lead
+      + '<div class="rbody">'
+      + '<div class="rmeta">'+it.meta+'　<span style="opacity:.7">'+it.sub+'</span></div>'
+      + '<div class="raction">'+it.action+'</div>'
+      + '</div>'
+      + '<span class="rpill">'+(it.truth==="true"?"本当":"嘘")+'</span>'
+      + '</div>';
+  }
+  function find(f){ for(var i=0;i<items.length;i++){ if(f(items[i])) return items[i]; } return null; }
+  var slots = [
+    { it: find(function(x){return x.gaze && x.num==="1";}), label:"👁 1回目の視線" },
+    { it: find(function(x){return !x.gaze && !x.accel;}),   label:"⚡💧 散開 / 頭割り" },
+    { it: find(function(x){return x.accel;}),               label:"💣 加速度" },
+    { it: find(function(x){return x.gaze && x.num==="2";}), label:"👁 2回目の視線" }
+  ];
   html += '<div class="rescol"><div class="divider"></div><div class="results">';
-  if(items.length===0){
-    html += '<div class="rempty">真偽＋デバフをタップすると、ここに処理が大きく表示されます</div>';
-  } else {
-    for(var i=0;i<items.length;i++){
-      var it=items[i];
-      var lead = it.gaze
-        ? '<span class="gnum"><span class="n">'+it.num+'</span><span class="k">回目</span></span><span class="remoji">👁</span>'
-        : '<span class="remoji">'+it.emoji+'</span>';
-      html += '<div class="rcard '+(it.gaze?'gaze ':'')+(it.role?'role ':'')+(it.accel?'accel ':'')+(it.truth==="true"?"tr":"fa")+'">'
-        + lead
-        + '<div class="rbody">'
-        + '<div class="rmeta">'+it.meta+'　<span style="opacity:.7">'+it.sub+'</span></div>'
-        + '<div class="raction">'+it.action+'</div>'
-        + '</div>'
-        + '<span class="rpill">'+(it.truth==="true"?"本当":"嘘")+'</span>'
-        + '</div>';
-    }
+  for(var s=0;s<slots.length;s++){
+    html += slots[s].it ? cardHtml(slots[s].it)
+                        : '<div class="rslot">'+slots[s].label+'</div>';
   }
   html += '</div></div>';
 
