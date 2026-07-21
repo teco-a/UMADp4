@@ -92,6 +92,13 @@
 
   .resetbtn{width:100%;margin-top:14px;border:none;border-radius:14px;padding:16px;
     font-size:17px;font-weight:900;background:var(--accent);color:#241a00;cursor:pointer;}
+  .resetbtn:active{transform:scale(.98);filter:brightness(1.15);}
+
+  /* タップ時のリアクション（再描画後にポップ） */
+  @keyframes popk{0%{transform:scale(.88);}55%{transform:scale(1.05);}100%{transform:scale(1);}}
+  .pop{animation:popk .22s ease-out;}
+  @keyframes cardin{0%{transform:scale(.96);opacity:.4;}100%{transform:scale(1);opacity:1;}}
+  .cardpop{animation:cardin .25s ease-out;}
   .footer{color:var(--sub);font-size:10px;text-align:center;margin-top:14px;line-height:1.5;}
   .divider{height:1px;background:var(--border);margin:12px 0;}
 
@@ -190,7 +197,9 @@ var DEB = {
 var KEYS = ["lightning","water","accel"];
 
 var state;
+var resetTap=false;
 function reset(){
+  resetTap = (state!==undefined); /* 初回ロード時はポップさせない */
   state = {
     gc1:null, gc1d:{lightning:false,water:false,curse:false,accel:false,none:false},
     gc2:null, gc2d:{lightning:false,water:false,curse:false,accel:false,none:false}
@@ -198,13 +207,16 @@ function reset(){
   render();
 }
 
+var lastTap=null; /* 直前にタップしたボタン（再描画後にポップさせる） */
 function setTruth(gc,val){
   state[gc] = (state[gc]===val) ? null : val; /* 再タップで解除 */
+  lastTap='t_'+gc+'_'+val;
   render();
 }
 function toggleDeb(dkey,k){
   var d = state[dkey];
   var o = state[dkey==="gc1d" ? "gc2d" : "gc1d"];
+  lastTap='d_'+dkey+'_'+k;
   d[k] = !d[k];
   if(d[k]){
     /* 水雷グループ（⚡💧）と視線グループ（👁該当なし）は同一GC内で排他 */
@@ -227,8 +239,8 @@ function gcSection(label, truthKey, debKey){
   html += '<div class="gclabel">'+label+'</div>';
   html += '<div class="gcbody">';
   html += '<div class="truthrow">'
-    + '<button class="tbtn t'+(t==="true"?" on":"")+'" onclick="setTruth(\''+truthKey+'\',\'true\')">本当<small>青い球</small></button>'
-    + '<button class="tbtn f'+(t==="false"?" on":"")+'" onclick="setTruth(\''+truthKey+'\',\'false\')">嘘<small>赤い？</small></button>'
+    + '<button class="tbtn t'+(t==="true"?" on":"")+(lastTap==='t_'+truthKey+'_true'?" pop":"")+'" onclick="setTruth(\''+truthKey+'\',\'true\')">本当<small>青い球</small></button>'
+    + '<button class="tbtn f'+(t==="false"?" on":"")+(lastTap==='t_'+truthKey+'_false'?" pop":"")+'" onclick="setTruth(\''+truthKey+'\',\'false\')">嘘<small>赤い？</small></button>'
     + '</div>';
   function ibtn(k){
     var on=state[debKey][k], d=DEB[k];
@@ -241,6 +253,7 @@ function gcSection(label, truthKey, debKey){
       ? '<span class="emoji">－</span><span class="nm">該当なし</span>'
       : '<span class="emoji">'+d.emoji+'</span><span class="nm">'+d.nm+'</span>';
     return '<button class="ibtn'+(k==="none"?" none":"")+(on?" on":"")+(dis?" dis":"")
+      +(lastTap==='d_'+debKey+'_'+k?" pop":"")
       +'" onclick="toggleDeb(\''+debKey+'\',\''+k+'\')">'+inner+'</button>';
   }
   html += '<div class="iconrow">'
@@ -300,11 +313,11 @@ function render(){
 
   /* 結果エリア: 4スロット固定（視線1 / 水雷 / 加速度 / 視線2）。空きは枠のみ表示 */
   var items = buildItems();
-  function cardHtml(it){
+  function cardHtml(it, popped){
     var lead = it.gaze
       ? '<span class="gnum"><span class="n">'+it.num+'</span><span class="k">回目</span></span><span class="remoji">👁</span>'
       : '<span class="remoji">'+it.emoji+'</span>';
-    return '<div class="rcard '+(it.gaze?'gaze ':'')+(it.role?'role ':'')+(it.accel?'accel ':'')+(it.truth==="true"?"tr":"fa")+'">'
+    return '<div class="rcard '+(popped?'cardpop ':'')+(it.gaze?'gaze ':'')+(it.role?'role ':'')+(it.accel?'accel ':'')+(it.truth==="true"?"tr":"fa")+'">'
       + lead
       + '<div class="rbody">'
       + '<div class="rmeta">'+it.meta+'　<span style="opacity:.7">'+it.sub+'</span></div>'
@@ -322,17 +335,23 @@ function render(){
   ];
   html += '<div class="rescol"><div class="divider"></div><div class="results">';
   for(var s=0;s<slots.length;s++){
-    html += slots[s].it ? cardHtml(slots[s].it)
-                        : '<div class="rslot">'+slots[s].label+'</div>';
+    var it2 = slots[s].it;
+    var sig = it2 ? (it2.meta+'|'+it2.truth+'|'+it2.action) : null;
+    var popped = sig!==null && sig!==slotSigs[s]; /* 内容が変わったカードだけポップ */
+    slotSigs[s]=sig;
+    html += it2 ? cardHtml(it2, popped)
+                : '<div class="rslot">'+slots[s].label+'</div>';
   }
   html += '</div></div>';
 
-  html += '<div class="resetwrap"><button class="resetbtn" onclick="reset()">リセット</button></div>';
+  html += '<div class="resetwrap"><button class="resetbtn'+(resetTap?' pop':'')+'" onclick="reset()">リセット</button></div>';
   html += '</div>'; /* /layout */
 
   document.getElementById('app').innerHTML = html;
+  lastTap=null; resetTap=false; /* ポップは1回だけ */
 }
 
+var slotSigs=[null,null,null,null];
 reset();
 </script>
 </body>
