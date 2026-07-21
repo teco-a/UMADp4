@@ -42,6 +42,7 @@
   .ibtn.none .emoji{font-size:26px;padding-top:6px;}
   .ibtn.none.on{border-color:#64748b;background:#242c38;color:#c3ccd8;}
   .ibtn.none.on .emoji{filter:none;}
+  .ibtn.dis{opacity:.22;pointer-events:none;}
   .ibtn .emoji{font-size:34px;display:block;line-height:1.1;filter:grayscale(1) opacity(.55);}
   .ibtn .nm{font-size:11px;font-weight:700;display:block;margin-top:4px;line-height:1.2;}
   .ibtn.on{border-color:var(--accent);background:#2a2410;color:var(--accent);}
@@ -61,6 +62,12 @@
   .rcard.tr .rpill{background:var(--true);color:#08152e;}
   .rcard.fa .rpill{background:var(--false);color:#2e0808;}
   .rempty{color:var(--sub);font-size:14px;text-align:center;padding:18px 0;border:1px dashed var(--border);border-radius:14px;}
+
+  /* 加速度爆弾カード: 破線枠＋琥珀色で他デバフと区別 */
+  .rcard.accel{border-style:dashed;border-width:3px;border-color:#d97706;}
+  .rcard.accel.tr{background:linear-gradient(90deg,#2b2410 0%,#101826 100%);}
+  .rcard.accel.fa{background:linear-gradient(90deg,#2b2410 0%,#1a1010 100%);}
+  .rcard.accel .rmeta{color:#e8a33d;}
 
   /* 視線カード: デバフと明確に区別 */
   .rcard.gaze{border-style:double;border-width:5px;}
@@ -158,6 +165,8 @@ function toggleDeb(dkey,k){
 }
 function gcSection(label, truthKey, debKey){
   var t = state[truthKey];
+  /* 同種デバフはGC1/GC2のどちらか一方にしかつかない → 相手側で選択済みなら無効化 */
+  var other = state[debKey==="gc1d" ? "gc2d" : "gc1d"];
   var html = '<div class="gcrow">';
   html += '<div class="gclabel">'+label+'</div>';
   html += '<div class="gcbody">';
@@ -167,7 +176,8 @@ function gcSection(label, truthKey, debKey){
     + '</div>';
   function ibtn(k){
     var on=state[debKey][k], d=DEB[k];
-    return '<button class="ibtn'+(on?" on":"")+'" onclick="toggleDeb(\''+debKey+'\',\''+k+'\')">'
+    var dis = (k==="accel") ? other.accel : (other.lightning || other.water);
+    return '<button class="ibtn'+(on?" on":"")+(dis?" dis":"")+'" onclick="toggleDeb(\''+debKey+'\',\''+k+'\')">'
       + '<span class="emoji">'+d.emoji+'</span><span class="nm">'+d.nm+'</span></button>';
   }
   html += '<div class="iconrow">'
@@ -188,7 +198,7 @@ function buildItems(){
       if(debObj[k]){
         var d=DEB[k];
         items.push({
-          emoji:d.emoji, meta:d.full, truth:truth,
+          emoji:d.emoji, meta:d.full, truth:truth, accel:(k==="accel"),
           action: truth==="true"?d.t:d.f,
           sub: truth==="true"?d.tSub:d.fSub
         });
@@ -226,7 +236,7 @@ function render(){
       var lead = it.gaze
         ? '<span class="gnum"><span class="n">'+it.num+'</span><span class="k">回目</span></span><span class="remoji">👁</span>'
         : '<span class="remoji">'+it.emoji+'</span>';
-      html += '<div class="rcard '+(it.gaze?'gaze ':'')+(it.truth==="true"?"tr":"fa")+'">'
+      html += '<div class="rcard '+(it.gaze?'gaze ':'')+(it.accel?'accel ':'')+(it.truth==="true"?"tr":"fa")+'">'
         + lead
         + '<div class="rbody">'
         + '<div class="rmeta">'+it.meta+'　<span style="opacity:.7">'+it.sub+'</span></div>'
