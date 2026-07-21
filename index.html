@@ -229,12 +229,15 @@ function buildItems(){
   var items=[];
   function add(num, truth, debObj){
     if(truth===null) return;
+    var gcNum = (num==="1") ? 1 : 2;
     for(var i=0;i<KEYS.length;i++){
       var k=KEYS[i];
       if(debObj[k]){
         var d=DEB[k];
         items.push({
           emoji:d.emoji, meta:d.full, truth:truth, accel:(k==="accel"),
+          /* 中段は位置固定: 2段目=水雷ゾーン、3段目=加速度ゾーン */
+          sort: (k==="accel") ? 20 : 10,
           action: truth==="true"?d.t:d.f,
           sub: truth==="true"?d.tSub:d.fSub
         });
@@ -246,6 +249,8 @@ function buildItems(){
       gaze:true, role:role, num:num,
       meta: role ? "視線【自分が視線役】" : "視線",
       truth:truth,
+      /* 1回目視線=必ず先頭、2回目視線=必ず末尾 */
+      sort: (num==="1") ? 0 : 100,
       action: truth==="true"?"見ない":"見る",
       sub: role
         ? (truth==="true"?"中央へ・外を向く":"中央へ・相方の視線役を見る")
@@ -254,6 +259,7 @@ function buildItems(){
   }
   add("1", state.gc1, state.gc1d);
   add("2", state.gc2, state.gc2d);
+  items.sort(function(a,b){ return a.sort - b.sort; });
   return items;
 }
 
@@ -289,7 +295,7 @@ function render(){
   }
   html += '</div></div>';
 
-  html += '<div class="resetwrap"><button class="resetbtn" onclick="reset()">リセット（次の周回へ）</button></div>';
+  html += '<div class="resetwrap"><button class="resetbtn" onclick="reset()">リセット</button></div>';
   html += '</div>'; /* /layout */
 
   document.getElementById('app').innerHTML = html;
