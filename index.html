@@ -17,7 +17,9 @@
   html,body{margin:0;padding:0;background:var(--bg);color:var(--text);
     font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans",sans-serif;
     min-height:100%;overscroll-behavior:none;}
-  #app{max-width:900px;margin:0 auto;padding:10px 12px 40px;}
+  #app{max-width:900px;margin:0 auto;
+    padding:max(20px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right))
+            max(28px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));}
 
   .gcrow{display:flex;align-items:stretch;gap:8px;margin-bottom:10px;}
   .gclabel{writing-mode:vertical-rl;text-orientation:upright;font-size:13px;font-weight:800;
@@ -93,22 +95,42 @@
   .rescol{grid-area:rescol;}
   .resetwrap{grid-area:resetw;}
 
-  /* 横画面タブレット: 左=入力 / 右=結果（スクロール不要で常時見える） */
+  /* 横画面タブレット: 左=入力 / 右=結果、画面全体を使う */
   @media (min-width:700px) and (orientation:landscape){
-    #app{max-width:1250px;padding:14px 20px 30px;}
+    #app{max-width:1250px;
+      padding:max(26px, env(safe-area-inset-top)) max(28px, env(safe-area-inset-right))
+              max(26px, env(safe-area-inset-bottom)) max(28px, env(safe-area-inset-left));}
     .layout{
       grid-template-areas:"inputs rescol" "resetw rescol";
       grid-template-columns:minmax(340px,460px) 1fr;
-      grid-template-rows:auto 1fr;
-      gap:0 24px;align-items:start;
+      grid-template-rows:1fr auto;
+      gap:14px 28px;align-items:stretch;
+      min-height:calc(100vh - 60px);
+      min-height:calc(100dvh - 60px);
     }
+    /* 入力側: ボタン自体を縦いっぱいに引き伸ばす */
+    .inputs{display:flex;flex-direction:column;gap:16px;}
+    .gcrow{flex:1;margin-bottom:0;}
+    .gcbody{gap:12px;}
+    .truthrow{flex:1;}
+    .tbtn{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;
+      font-size:24px;padding:10px 6px;}
+    .tbtn small{font-size:13px;margin-top:4px;}
+    .iconrow{flex:1.2;}
+    .pairgroup{padding:6px;}
+    .ibtn{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:8px 4px;height:100%;}
+    .ibtn .emoji{font-size:44px;}
+    .ibtn .nm{font-size:13px;margin-top:6px;}
+    .gclabel{font-size:15px;min-width:40px;}
+    /* 結果側: カードを縦いっぱいに均等配置 */
+    .rescol{display:flex;flex-direction:column;}
     .rescol .divider{display:none;}
-    .rescol{position:sticky;top:10px;}
-    .rcard{padding:16px 20px;}
-    .rcard .remoji{font-size:44px;}
-    .rcard .raction{font-size:clamp(26px,3.2vw,38px);}
-    .rempty{padding:40px 16px;font-size:15px;}
-    .resetbtn{margin-top:10px;}
+    .results{flex:1;display:flex;flex-direction:column;gap:12px;}
+    .rcard{flex:1;margin-bottom:0;padding:16px 22px;}
+    .rcard .remoji{font-size:46px;}
+    .rcard .raction{font-size:clamp(28px,3.4vw,42px);}
+    .rempty{flex:1;display:flex;align-items:center;justify-content:center;font-size:15px;}
+    .resetbtn{margin-top:0;padding:18px;}
   }
   /* 幅の狭いスマホ: アイコンや文字を少し詰める */
   @media (max-width:430px){
