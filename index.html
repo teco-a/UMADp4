@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="mobile-web-app-capable" content="yes">
+<title>P4 デバフ判定</title>
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --panel2:#1c2333; --border:#2a3244;
+    --true:#3b82f6; --true-dark:#173261; --false:#ef4444; --false-dark:#521717;
+    --accent:#f5b700; --text:#e6edf3; --sub:#8a97a8;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans",sans-serif;
+    min-height:100%;overscroll-behavior:none;}
+  #app{max-width:900px;margin:0 auto;padding:10px 12px 40px;}
+
+  .gcrow{display:flex;align-items:stretch;gap:8px;margin-bottom:10px;}
+  .gclabel{writing-mode:vertical-rl;text-orientation:upright;font-size:13px;font-weight:800;
+    color:var(--accent);display:flex;align-items:center;justify-content:center;
+    background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:6px 2px;min-width:34px;}
+  .gcbody{flex:1;display:flex;flex-direction:column;gap:8px;}
+  .truthrow{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+  .tbtn{border:2px solid var(--border);border-radius:14px;padding:14px 6px;font-size:19px;font-weight:900;
+    color:var(--sub);background:var(--panel);cursor:pointer;text-align:center;line-height:1.2;}
+  .tbtn small{display:block;font-size:11px;font-weight:600;margin-top:2px;}
+  .tbtn.t.on{background:linear-gradient(180deg,var(--true),var(--true-dark));color:#fff;border-color:var(--true);}
+  .tbtn.f.on{background:linear-gradient(180deg,var(--false),var(--false-dark));color:#fff;border-color:var(--false);}
+  .tbtn:active{transform:scale(.97);}
+  .iconrow{display:flex;gap:10px;align-items:stretch;}
+  .pairgroup{display:flex;gap:6px;flex:2;border:2px dashed #3d485e;border-radius:16px;padding:5px;position:relative;}
+  .pairgroup::before{content:"どちらか一方";position:absolute;top:-9px;left:12px;background:var(--bg);
+    color:var(--sub);font-size:10px;font-weight:700;padding:0 6px;border-radius:6px;}
+  .pairgroup .ibtn{flex:1;}
+  .iconrow > .ibtn{flex:1;}
+  .ibtn{border:2px solid var(--border);border-radius:14px;background:var(--panel);cursor:pointer;
+    padding:10px 4px 8px;text-align:center;color:var(--sub);}
+  .ibtn.none .emoji{font-size:26px;padding-top:6px;}
+  .ibtn.none.on{border-color:#64748b;background:#242c38;color:#c3ccd8;}
+  .ibtn.none.on .emoji{filter:none;}
+  .ibtn .emoji{font-size:34px;display:block;line-height:1.1;filter:grayscale(1) opacity(.55);}
+  .ibtn .nm{font-size:11px;font-weight:700;display:block;margin-top:4px;line-height:1.2;}
+  .ibtn.on{border-color:var(--accent);background:#2a2410;color:var(--accent);}
+  .ibtn.on .emoji{filter:none;}
+  .ibtn:active{transform:scale(.95);}
+
+  .results{margin-top:6px;}
+  .rcard{border-radius:16px;padding:14px 16px;margin-bottom:8px;display:flex;align-items:center;gap:14px;
+    border:2px solid var(--border);}
+  .rcard.tr{background:linear-gradient(90deg,#16294d 0%,#101826 100%);border-color:#2a4d8f;}
+  .rcard.fa{background:linear-gradient(90deg,#471616 0%,#1a1010 100%);border-color:#8f2a2a;}
+  .rcard .remoji{font-size:36px;flex-shrink:0;}
+  .rcard .rbody{flex:1;min-width:0;}
+  .rcard .rmeta{font-size:11px;color:var(--sub);font-weight:700;}
+  .rcard .raction{font-size:clamp(20px,4.5vw,30px);font-weight:900;color:#fff;line-height:1.25;}
+  .rcard .rpill{font-size:11px;font-weight:800;padding:3px 10px;border-radius:12px;flex-shrink:0;}
+  .rcard.tr .rpill{background:var(--true);color:#08152e;}
+  .rcard.fa .rpill{background:var(--false);color:#2e0808;}
+  .rempty{color:var(--sub);font-size:14px;text-align:center;padding:18px 0;border:1px dashed var(--border);border-radius:14px;}
+
+  .resetbtn{width:100%;margin-top:14px;border:none;border-radius:14px;padding:16px;
+    font-size:17px;font-weight:900;background:var(--accent);color:#241a00;cursor:pointer;}
+  .footer{color:var(--sub);font-size:10px;text-align:center;margin-top:14px;line-height:1.5;}
+  .divider{height:1px;background:var(--border);margin:12px 0;}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+"use strict";
+
+/* デバフ定義: t=本当のときの処理, f=嘘のときの処理 */
+var DEB = {
+  lightning: {emoji:"⚡", nm:"ライトニング", full:"フォークライトニング", t:"散開",     f:"頭割り",
+              tSub:"1人で範囲AoEを受ける", fSub:"味方と重なる"},
+  water:     {emoji:"💧", nm:"水圧縮",   full:"水属性圧縮",         t:"頭割り",   f:"散開",
+              tSub:"味方と重なる", fSub:"1人で範囲AoEを受ける"},
+  accel:     {emoji:"💣", nm:"加速度",   full:"加速度爆弾",         t:"動かない", f:"動く",
+              tSub:"その場で静止", fSub:"移動し続ける"}
+};
+var KEYS = ["lightning","water","accel"];
+
+var state;
+function reset(){
+  state = {
+    gc1:null, gc1d:{lightning:false,water:false,accel:false,none:false},
+    gc2:null, gc2d:{lightning:false,water:false,accel:false,none:false}
+  };
+  render();
+}
+
+function setTruth(gc,val){
+  state[gc] = (state[gc]===val) ? null : val; /* 再タップで解除 */
+  render();
+}
+function toggleDeb(dkey,k){
+  var d = state[dkey];
+  if(k==="none"){
+    d.none = !d.none;
+    if(d.none){ d.lightning=false; d.water=false; d.accel=false; }
+  } else {
+    d[k] = !d[k];
+    if(d[k]) d.none = false;
+    /* ライトニングと水圧縮は同時付与されない → 排他 */
+    if(k==="lightning" && d.lightning) d.water=false;
+    if(k==="water" && d.water) d.lightning=false;
+  }
+  render();
+}
+function gcSection(label, truthKey, debKey){
+  var t = state[truthKey];
+  var html = '<div class="gcrow">';
+  html += '<div class="gclabel">'+label+'</div>';
+  html += '<div class="gcbody">';
+  html += '<div class="truthrow">'
+    + '<button class="tbtn t'+(t==="true"?" on":"")+'" onclick="setTruth(\''+truthKey+'\',\'true\')">本当<small>青い球</small></button>'
+    + '<button class="tbtn f'+(t==="false"?" on":"")+'" onclick="setTruth(\''+truthKey+'\',\'false\')">嘘<small>赤い？</small></button>'
+    + '</div>';
+  function ibtn(k){
+    var on=state[debKey][k], d=DEB[k];
+    return '<button class="ibtn'+(on?" on":"")+'" onclick="toggleDeb(\''+debKey+'\',\''+k+'\')">'
+      + '<span class="emoji">'+d.emoji+'</span><span class="nm">'+d.nm+'</span></button>';
+  }
+  html += '<div class="iconrow">'
+    + '<div class="pairgroup">'+ibtn("lightning")+ibtn("water")+'</div>'
+    + ibtn("accel")
+    + '<button class="ibtn none'+(state[debKey].none?" on":"")+'" onclick="toggleDeb(\''+debKey+'\',\'none\')">'
+    + '<span class="emoji">－</span><span class="nm">該当なし</span></button>';
+  html += '</div></div></div>';
+  return html;
+}
+
+function buildItems(){
+  var items=[];
+  function add(gcTag, gazeTag, truth, debObj){
+    if(truth===null) return;
+    for(var i=0;i<KEYS.length;i++){
+      var k=KEYS[i];
+      if(debObj[k]){
+        var d=DEB[k];
+        items.push({
+          emoji:d.emoji, meta:gcTag+"・"+d.full, truth:truth,
+          action: truth==="true"?d.t:d.f,
+          sub: truth==="true"?d.tSub:d.fSub
+        });
+      }
+    }
+    /* 視線はGCの真偽から自動判定（GC1→1回目、GC2→2回目） */
+    items.push({
+      emoji:"👁", meta:gazeTag+"の視線（自動）", truth:truth,
+      action: truth==="true"?"見ない":"見る",
+      sub: truth==="true"?"視線から外を向く":"視線の方を向く"
+    });
+  }
+  add("GC1", "1回目", state.gc1, state.gc1d);
+  add("GC2", "2回目", state.gc2, state.gc2d);
+  return items;
+}
+
+function render(){
+  var html='';
+
+  html += gcSection("ＧＣ１","gc1","gc1d");
+  html += gcSection("ＧＣ２","gc2","gc2d");
+
+  html += '<div class="divider"></div>';
+
+  var items = buildItems();
+  html += '<div class="results">';
+  if(items.length===0){
+    html += '<div class="rempty">真偽＋デバフをタップすると、ここに処理が大きく表示されます</div>';
+  } else {
+    for(var i=0;i<items.length;i++){
+      var it=items[i];
+      html += '<div class="rcard '+(it.truth==="true"?"tr":"fa")+'">'
+        + '<span class="remoji">'+it.emoji+'</span>'
+        + '<div class="rbody">'
+        + '<div class="rmeta">'+it.meta+'　<span style="opacity:.7">'+it.sub+'</span></div>'
+        + '<div class="raction">'+it.action+'</div>'
+        + '</div>'
+        + '<span class="rpill">'+(it.truth==="true"?"本当":"嘘")+'</span>'
+        + '</div>';
+    }
+  }
+  html += '</div>';
+
+  html += '<button class="resetbtn" onclick="reset()">リセット（次の周回へ）</button>';
+  html += '<div class="footer">⚡ライトニング　💧水圧縮　💣加速度｜視線(👁)はGCの真偽から自動表示。⚡と💧は排他。ボタン再タップで解除。yan-flash / kanatan.info の対応表準拠。</div>';
+
+  document.getElementById('app').innerHTML = html;
+}
+
+reset();
+</script>
+</body>
+</html>
