@@ -62,10 +62,55 @@
   .rcard.fa .rpill{background:var(--false);color:#2e0808;}
   .rempty{color:var(--sub);font-size:14px;text-align:center;padding:18px 0;border:1px dashed var(--border);border-radius:14px;}
 
+  /* 視線カード: デバフと明確に区別 */
+  .rcard.gaze{border-style:double;border-width:5px;}
+  .rcard.gaze.tr{background:#0e2038;}
+  .rcard.gaze.fa{background:#2e0e0e;}
+  .gnum{display:flex;flex-direction:column;align-items:center;justify-content:center;
+    width:56px;height:56px;border-radius:50%;flex-shrink:0;font-weight:900;line-height:1;
+    background:#fff;color:#111;}
+  .gnum .n{font-size:26px;}
+  .gnum .k{font-size:10px;margin-top:1px;}
+  .rcard.gaze.tr .gnum{background:#a8c8ff;color:#0a1c3d;}
+  .rcard.gaze.fa .gnum{background:#ffb3b3;color:#3d0a0a;}
+
   .resetbtn{width:100%;margin-top:14px;border:none;border-radius:14px;padding:16px;
     font-size:17px;font-weight:900;background:var(--accent);color:#241a00;cursor:pointer;}
   .footer{color:var(--sub);font-size:10px;text-align:center;margin-top:14px;line-height:1.5;}
   .divider{height:1px;background:var(--border);margin:12px 0;}
+
+  /* ---- レスポンシブ ---- */
+  /* 縦画面スマホ（既定）: 入力 → 結果 → リセット の縦積み */
+  .layout{display:grid;grid-template-areas:"inputs" "rescol" "resetw";grid-template-columns:1fr;}
+  .inputs{grid-area:inputs;}
+  .rescol{grid-area:rescol;}
+  .resetwrap{grid-area:resetw;}
+
+  /* 横画面タブレット: 左=入力 / 右=結果（スクロール不要で常時見える） */
+  @media (min-width:700px) and (orientation:landscape){
+    #app{max-width:1250px;padding:14px 20px 30px;}
+    .layout{
+      grid-template-areas:"inputs rescol" "resetw rescol";
+      grid-template-columns:minmax(340px,460px) 1fr;
+      grid-template-rows:auto 1fr;
+      gap:0 24px;align-items:start;
+    }
+    .rescol .divider{display:none;}
+    .rescol{position:sticky;top:10px;}
+    .rcard{padding:16px 20px;}
+    .rcard .remoji{font-size:44px;}
+    .rcard .raction{font-size:clamp(26px,3.2vw,38px);}
+    .rempty{padding:40px 16px;font-size:15px;}
+    .resetbtn{margin-top:10px;}
+  }
+  /* 幅の狭いスマホ: アイコンや文字を少し詰める */
+  @media (max-width:430px){
+    .ibtn .emoji{font-size:28px;}
+    .ibtn .nm{font-size:10px;}
+    .tbtn{font-size:17px;padding:12px 4px;}
+    .rcard .remoji{font-size:30px;}
+    .gclabel{min-width:30px;font-size:12px;}
+  }
 </style>
 </head>
 <body>
@@ -136,14 +181,14 @@ function gcSection(label, truthKey, debKey){
 
 function buildItems(){
   var items=[];
-  function add(gcTag, gazeTag, truth, debObj){
+  function add(num, truth, debObj){
     if(truth===null) return;
     for(var i=0;i<KEYS.length;i++){
       var k=KEYS[i];
       if(debObj[k]){
         var d=DEB[k];
         items.push({
-          emoji:d.emoji, meta:gcTag+"・"+d.full, truth:truth,
+          emoji:d.emoji, meta:d.full, truth:truth,
           action: truth==="true"?d.t:d.f,
           sub: truth==="true"?d.tSub:d.fSub
         });
@@ -151,33 +196,38 @@ function buildItems(){
     }
     /* 視線はGCの真偽から自動判定（GC1→1回目、GC2→2回目） */
     items.push({
-      emoji:"👁", meta:gazeTag+"の視線（自動）", truth:truth,
+      gaze:true, num:num, meta:"視線", truth:truth,
       action: truth==="true"?"見ない":"見る",
       sub: truth==="true"?"視線から外を向く":"視線の方を向く"
     });
   }
-  add("GC1", "1回目", state.gc1, state.gc1d);
-  add("GC2", "2回目", state.gc2, state.gc2d);
+  add("1", state.gc1, state.gc1d);
+  add("2", state.gc2, state.gc2d);
   return items;
 }
 
 function render(){
-  var html='';
+  var html='<div class="layout">';
 
+  /* 入力エリア */
+  html += '<div class="inputs">';
   html += gcSection("ＧＣ１","gc1","gc1d");
   html += gcSection("ＧＣ２","gc2","gc2d");
+  html += '</div>';
 
-  html += '<div class="divider"></div>';
-
+  /* 結果エリア */
   var items = buildItems();
-  html += '<div class="results">';
+  html += '<div class="rescol"><div class="divider"></div><div class="results">';
   if(items.length===0){
     html += '<div class="rempty">真偽＋デバフをタップすると、ここに処理が大きく表示されます</div>';
   } else {
     for(var i=0;i<items.length;i++){
       var it=items[i];
-      html += '<div class="rcard '+(it.truth==="true"?"tr":"fa")+'">'
-        + '<span class="remoji">'+it.emoji+'</span>'
+      var lead = it.gaze
+        ? '<span class="gnum"><span class="n">'+it.num+'</span><span class="k">回目</span></span><span class="remoji">👁</span>'
+        : '<span class="remoji">'+it.emoji+'</span>';
+      html += '<div class="rcard '+(it.gaze?'gaze ':'')+(it.truth==="true"?"tr":"fa")+'">'
+        + lead
         + '<div class="rbody">'
         + '<div class="rmeta">'+it.meta+'　<span style="opacity:.7">'+it.sub+'</span></div>'
         + '<div class="raction">'+it.action+'</div>'
@@ -186,9 +236,10 @@ function render(){
         + '</div>';
     }
   }
-  html += '</div>';
+  html += '</div></div>';
 
-  html += '<button class="resetbtn" onclick="reset()">リセット（次の周回へ）</button>';
+  html += '<div class="resetwrap"><button class="resetbtn" onclick="reset()">リセット（次の周回へ）</button></div>';
+  html += '</div>'; /* /layout */
   html += '<div class="footer">⚡ライトニング　💧水圧縮　💣加速度｜視線(👁)はGCの真偽から自動表示。⚡と💧は排他。ボタン再タップで解除。yan-flash / kanatan.info の対応表準拠。</div>';
 
   document.getElementById('app').innerHTML = html;
